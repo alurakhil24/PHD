@@ -11,9 +11,6 @@ io.on('connection',(socket)=>{
         console.log(clientData)
         socket.emit('fromServer', {message: "Thats ok bro.. Enjoy with Sockets"})
     })
-    socket.on('newDataFromClient',(msg)=>{
-        io.emit('dataToClients',{text:msg.text})
-    })
     setTimeout(() => {
         socket.emit('fromServer', {message: 'This is the second message you will get after 2 seconds '})
     }, 2000);
