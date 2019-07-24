@@ -16,14 +16,21 @@ class SocketDemo extends React.Component {
     socket.emit('fromClient', { message: 'Than you so much buddy' });
     socket.on('fromServer', this.addToMessage);
     socket.on('connect', () => this.addToMessage);
+    socket.on('mousemoved', (data) => {
+      console.log(data.name, data.coordinates);
+    })
   }
   addToMessage = ({ message }) => {
     const newMessages = this.state.messages.concat(message);
-    this.setState({ messages: newMessages});
+    this.setState({ messages: newMessages });
   }
-  render () {
+  mouseMoveHandler = (event) => {
+    const { clientX: x, clientY: y } = event;
+    socket.emit('mousemove', { x, y });
+  }
+  render() {
     return (
-      <div>
+      <div onMouseMove={this.mouseMoveHandler}>
         {this.state.messages.map((message, index) => {
           return (
             <h1 key={index}> {message} </h1>
