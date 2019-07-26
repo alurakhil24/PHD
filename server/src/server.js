@@ -95,6 +95,16 @@ io.on('connection', socket => {
   });
   socket.on('shapeDropped', (data) => {
     io.emit('shapeDroppedOnClient', { ...data });
-  })
+  });
+  socket.on('shapeSelected', (data) => {
+    const {clientId,shape} = data;
+    console.log("Hiiiiiii" + data);
+    io.emit('shapeSelectedOnClient', { ...data });
+  });
+  socket.on('shapeMoved', (data) => {
+    const {clientId,shape} = data;
+    console.log("Hiiiiiii Moved" + data);
+    io.emit('shapeMovedOnClient', { ...data });
+  });
 })
 server.listen(port, () => console.log(`Listening on port ${port}`))

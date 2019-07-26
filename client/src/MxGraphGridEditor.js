@@ -127,14 +127,8 @@ class mxGraphGridAreaEditor extends Component {
 
         clientCursor.setAttribute("style", `background: red;left: ${mousePosition.x * this.state.width}px ; top:${mousePosition.y * this.state.height}px; position: absolute`);
 
-        // clientCursor.left = mousePosition.x;
-        // clientCursor.top = mousePosition.y;
       }
     });
-  }
-
-  componentWillUnmount() {
-    // window.removeEventListener('resize', this.updateWindowDimensions);
   }
   componentDidMount = () => {
     this.LoadGraph();
@@ -144,7 +138,7 @@ class mxGraphGridAreaEditor extends Component {
       this.props.socket.emit('storeClientInfo', {
         customId: this.props.userName,
         clientId: this.props.socket.id,
-      }) // change 'red' to this.state.color
+      })
 
 
       this.props.socket.on('newclientAdded', ({ clients, addedClient }) => {
@@ -205,7 +199,8 @@ class mxGraphGridAreaEditor extends Component {
       });
 
       this.props.socket.on('shapeDroppedOnClient', this.listenToShapeDroppedEvent);
-
+      this.props.socket.on('shapeSelectedOnClient', this.listenToShapeSelectedEvent);
+      this.props.socket.on('shapeMovedOnClient', this.listenToShapeMovedOnClientEvent);
       this.addDocumentListeners();
       this.listenForClientSocketEvents();
       document.getElementById("clientId").innerHTML = this.state.customId;
@@ -228,21 +223,37 @@ class mxGraphGridAreaEditor extends Component {
   }
   handleClientMouseClick = () => {
     this.props.socket.on('clientMouseClick', (mousePosition) => {
-      // console.log('client listened')
-      // console.log(mousePosition);
-      // let clientCursor = document.getElementById(mousePosition.clientId);
-      // if (clientCursor) {
-
-      //   clientCursor.setAttribute("style", `background:blue; left: ${mousePosition.x}px ; top:${mousePosition.y}px; position: absolute`);
-
-      //   // clientCursor.left = mousePosition.x;
-      //   // clientCursor.top = mousePosition.y;
-      // }
     });
   }
+  listenToShapeMovedOnClientEvent = (data) =>{
+  if(data) {
+    const { graph } = this.state;
+    const { shape, clientId } =  data;
+    const model = graph.getModel();
+    const mxCell = graph.getModel().getCell(shape.id);
+    const selectionModel = graph.getSelectionModel(mxCell);
+    const isMxCellSelected = selectionModel.isSelected(mxCell);
+    if(this.props.socket.id !== clientId && model){
+      let geometry =  shape.geometry;
+      geometry = { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height };
+      model.setGeometry(mxCell, geometry);
+    }
+  }
+}
 
-  handleClick = () => {
 
+  listenToShapeSelectedEvent = (data) => {
+    console.log('shape selected event ');
+    if(data) {
+      const { graph } = this.state;
+      const { shape, clientId } =  data;
+      const model = graph.getModel();
+      const mxCell = graph.getModel().getCell(shape.id);
+      const selectionModel = graph.getSelectionModel(mxCell);
+      const isMxCellSelected = selectionModel.isSelected(mxCell);
+      if(this.props.socket.id !== clientId && isMxCellSelected === false )
+        graph.setSelectionCell(mxCell);
+    }
   }
 
   listenToShapeDroppedEvent = (data) => {
@@ -367,9 +378,7 @@ class mxGraphGridAreaEditor extends Component {
     graph.getModel().beginUpdate();
     try {
       const edit = new mxCellAttributeChange(cell, name, newValue);
-      // console.log(edit)
       graph.getModel().execute(edit);
-      // graph.updateCellSize(cell);
     } finally {
       graph.getModel().endUpdate();
     }
@@ -460,6 +469,7 @@ class mxGraphGridAreaEditor extends Component {
       currentNode: graph.getSelectionCell(),
       currentTask: value
     });
+    
   };
   createPopupMenu = (graph, menu, cell, evt) => {
     if (cell) {
@@ -470,8 +480,6 @@ class mxGraphGridAreaEditor extends Component {
         });
       } else {
         menu.addItem("Edit child node", null, function () {
-          // mxUtils.alert('Edit child node: ');
-          // selectionChanged(graph)
         });
         menu.addItem("Delete child node", null, function () {
           graph.removeCells([cell]);
@@ -606,8 +614,23 @@ class mxGraphGridAreaEditor extends Component {
       console.log(node);
     };
   };
+  cellsMove = (sender,evt) => {
+    console.log(sender);
+    const {graph} = this.state;
+    if(graph.getSelectionCell()){
+      const {geometry, id, style, value} = graph.getSelectionCell();
+      const mxCell = {geometry, id, style, value};
+      this.props.socket.emit('shapeMoved', { shape: mxCell, clientId : this.props.socket.id});
+    }
+  }
   selectionChange = (sender, evt) => {
-    // console.log(sender)
+    console.log(sender);
+    const {graph} = this.state;
+    if(graph.getSelectionCell()){
+      const {geometry, id, style, value} = graph.getSelectionCell();
+      const mxCell = {geometry, id, style, value};
+      this.props.socket.emit('shapeSelected', { shape: mxCell, clientId : this.props.socket.id});
+    }
   };
   settingConnection = () => {
     const { graph } = this.state;
@@ -819,6 +842,8 @@ class mxGraphGridAreaEditor extends Component {
       graph
         .getSelectionModel()
         .addListener(mxEvent.CHANGE, this.selectionChange);
+        graph
+        .addListener(mxEvent.MOVE_CELLS, this.cellsMove);
       var parent = graph.getDefaultParent();
     }
   }
