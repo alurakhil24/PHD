@@ -111,6 +111,7 @@ class mxGraphGridAreaEditor extends Component {
       width: window.innerWidth,
       height: window.innerHeight,
       confirmLiveShare: false,
+      roomName: null,
     };
 
 
@@ -194,16 +195,31 @@ class mxGraphGridAreaEditor extends Component {
           })
         }
       });
+      this.props.socket.on('joineRoomSucess', this.handleRoomJoinSucess);
+
+
 
       this.props.socket.on('shapeDroppedOnClient', this.listenToShapeDroppedEvent);
-      this.props.socket.on('shapeSelectedOnClient', this.listenToShapeSelectedEvent);
+      // this.props.socket.on('shapeSelectedOnClient', this.listenToShapeSelectedEvent);
       this.props.socket.on('shapeMovedOnClient', this.listenToShapeMovedOnClientEvent);
+      this.props.socket.on('newUserJoinedRoom', this.newUserJoinedRoom);
+
+
       this.addDocumentListeners();
       this.listenForClientSocketEvents();
       document.getElementById("clientId").innerHTML = this.state.customId;
       window.addEventListener('resize', this.updateWindowDimensions);
     }
 
+  }
+
+  newUserJoinedRoom = () => {
+    notification.open(
+      {
+        message: 'new user joined',
+        duration: 2
+      }
+    )
   }
 
   updateWindowDimensions = () => {
@@ -222,33 +238,33 @@ class mxGraphGridAreaEditor extends Component {
     this.props.socket.on('clientMouseClick', (mousePosition) => {
     });
   }
-  listenToShapeMovedOnClientEvent = (data) =>{
-  if(data) {
-    const { graph } = this.state;
-    const { shape, clientId } =  data;
-    const model = graph.getModel();
-    const mxCell = graph.getModel().getCell(shape.id);
-    const selectionModel = graph.getSelectionModel(mxCell);
-    const isMxCellSelected = selectionModel.isSelected(mxCell);
-    if(this.props.socket.id !== clientId && model){
-      let geometry =  shape.geometry;
-      geometry = { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height };
-      model.setGeometry(mxCell, geometry);
-    }
-  }
-}
-
-
-  listenToShapeSelectedEvent = (data) => {
-    console.log('shape selected event ');
-    if(data) {
+  listenToShapeMovedOnClientEvent = (data) => {
+    if (data) {
       const { graph } = this.state;
-      const { shape, clientId } =  data;
+      const { shape, clientId } = data;
       const model = graph.getModel();
       const mxCell = graph.getModel().getCell(shape.id);
       const selectionModel = graph.getSelectionModel(mxCell);
       const isMxCellSelected = selectionModel.isSelected(mxCell);
-      if(this.props.socket.id !== clientId && isMxCellSelected === false )
+      if (this.props.socket.id !== clientId && model) {
+        let geometry = shape.geometry;
+        geometry = { x: geometry.x, y: geometry.y, width: geometry.width, height: geometry.height };
+        model.setGeometry(mxCell, geometry);
+      }
+    }
+  }
+
+
+  listenToShapeSelectedEvent = (data) => {
+    console.log('shape selected event ');
+    if (data) {
+      const { graph } = this.state;
+      const { shape, clientId } = data;
+      const model = graph.getModel();
+      const mxCell = graph.getModel().getCell(shape.id);
+      const selectionModel = graph.getSelectionModel(mxCell);
+      const isMxCellSelected = selectionModel.isSelected(mxCell);
+      if (this.props.socket.id !== clientId && isMxCellSelected === false)
         graph.setSelectionCell(mxCell);
     }
   }
@@ -611,22 +627,22 @@ class mxGraphGridAreaEditor extends Component {
       console.log(node);
     };
   };
-  cellsMove = (sender,evt) => {
+  cellsMove = (sender, evt) => {
     console.log(sender);
-    const {graph} = this.state;
-    if(graph.getSelectionCell()){
-      const {geometry, id, style, value} = graph.getSelectionCell();
-      const mxCell = {geometry, id, style, value};
-      this.props.socket.emit('shapeMoved', { shape: mxCell, clientId : this.props.socket.id});
+    const { graph } = this.state;
+    if (graph.getSelectionCell()) {
+      const { geometry, id, style, value } = graph.getSelectionCell();
+      const mxCell = { geometry, id, style, value };
+      this.props.socket.emit('shapeMoved', { shape: mxCell, clientId: this.props.socket.id });
     }
   }
   selectionChange = (sender, evt) => {
     console.log(sender);
-    const {graph} = this.state;
-    if(graph.getSelectionCell()){
-      const {geometry, id, style, value} = graph.getSelectionCell();
-      const mxCell = {geometry, id, style, value};
-      this.props.socket.emit('shapeSelected', { shape: mxCell, clientId : this.props.socket.id});
+    const { graph } = this.state;
+    if (graph.getSelectionCell()) {
+      const { geometry, id, style, value } = graph.getSelectionCell();
+      const mxCell = { geometry, id, style, value };
+      // this.props.socket.emit('shapeSelected', { shape: mxCell, clientId: this.props.socket.id });
     }
   };
   settingConnection = () => {
@@ -839,7 +855,7 @@ class mxGraphGridAreaEditor extends Component {
       graph
         .getSelectionModel()
         .addListener(mxEvent.CHANGE, this.selectionChange);
-        graph
+      graph
         .addListener(mxEvent.MOVE_CELLS, this.cellsMove);
       var parent = graph.getDefaultParent();
     }
@@ -862,43 +878,97 @@ class mxGraphGridAreaEditor extends Component {
   }
 
   mouseMoveHandler = (event) => {
-    let cursorPosition = {};
-    cursorPosition.x = event.clientX / this.state.width;
-    cursorPosition.y = event.clientY / this.state.height;
-    cursorPosition.clientId = this.props.socket.id;
-    this.props.socket.emit('mousemove', cursorPosition) // change 'red' to this.state.color
+    if (this.props.roomName !== null) {
+      let cursorPosition = {};
+      cursorPosition.x = event.clientX / this.state.width;
+      cursorPosition.y = event.clientY / this.state.height;
+      cursorPosition.clientId = this.props.socket.id;
+      this.props.socket.emit('mousemove', { data: cursorPosition, roomName: this.state.roomName }) // change 'red' to this.state.color
+    }
   }
 
   handleJoinRequest = () => {
     this.props.socket.on('requestToJoin', (roomName) => {
       this.setState({
         confirmLiveShare: true,
+        roomName
       });
     });
   }
   createRoom = () => {
-    this.props.socket.emit('create', { roomName: Math.random(), users: this.state.clients });
+    const roomName = Math.random();
+    this.props.socket.emit('create', { roomName, users: this.state.authorisedUsers });
+    notification.open({
+      message: 'Sent Requests',
+      duration: 1
+    });
+    this.setState({ roomName });
   }
+  onChange = (checkedValues) => {
+    console.log('checked = ', checkedValues);
 
+    const authorisedUsers = this.state.clients.filter(
+      (client) => {
+        console.log(client);
+        let found = false;
+        checkedValues.forEach((checkedValue) => {
+          if (client.clientId === checkedValue) {
+            found = true;
+            return;
+          }
+        });
+        if (found) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+    )
+
+    console.log('checked = ', authorisedUsers);
+
+    this.setState({
+      authorisedUsers
+    });
+  }
   getAvailableUsers = () => {
     if (this.state.clients) {
+      const options = []
+
+      this.state.clients.forEach(client => {
+        if (this.props.socket.id !== client.clientId) {
+          console.log(client);
+          options.push({
+            label: client.customId,
+            value: client.clientId,
+          });
+        }
+      });
+      console.log(options);
       const usersList = (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {this.state.clients.map((user) => {
-            if (this.props.userName !== user.customId) {
-              const options = this.state.clients.map(client => [{
-                label: client.customId,
-                value: client.customId,
-              }]);
-              return <Checkbox onChange={() => { }}>{user.customId}</Checkbox>
-            }
-          })}
+          {
+            <Checkbox.Group options={options} onChange={this.onChange} />
+          }
         </div>
       );
       this.setState({
         usersList
-      });
+      })
     }
+  }
+  handleRoomJoinSucess = ({ roomName }) => {
+
+    notification.open({
+      message: 'joined Room :::' + roomName,
+      duration: 1
+    });
+  }
+  handleAccept = () => {
+    this.props.socket.emit('joinRoom', { roomName: this.state.roomName });
+    this.setState({
+      confirmLiveShare: false,
+    });
   }
 
   handleDecline = () => {
@@ -944,7 +1014,7 @@ class mxGraphGridAreaEditor extends Component {
           <li id="layout123">layout</li>
           <LiveShare usersList={this.state.usersList} getAvailableUsers={this.getAvailableUsers} handleSend={this.createRoom} />
         </ul>
-        <LiveShareConfirmation show={this.state.confirmLiveShare} handleDecline={this.handleDecline} />
+        <LiveShareConfirmation show={this.state.confirmLiveShare} handleAccept={this.handleAccept} handleDecline={this.handleDecline} />
         <div className="toolbar" ref="toolbar" />
         <div className="container-wrapper">
           <div className="container" ref="divGraph" />

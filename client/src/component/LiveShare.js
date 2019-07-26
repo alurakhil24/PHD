@@ -18,7 +18,7 @@ function LiveShare(props) {
                         {props.usersList}
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" onClick={props.handleSend}>Send</button>
+                        <button type="button" class="btn btn-primary" onClick={props.handleSend} data-dismiss="modal">Send</button>
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                     </div>
                 </div>

@@ -42,7 +42,23 @@ io.on('connection', socket => {
         socket.broadcast.to(users[i].clientId).emit('requestToJoin', roomName);
       }
     }
-    });
+  });
+
+
+  socket.on('joinRoom', function ({ roomName, user }) {
+    console.log('joinRoom triggered :::' + roomName);
+    socket.join(roomName);
+    console.log(socket.id);
+    socket.to(roomName).emit('newUserJoinedRoom', "let's play a game");
+    io.to(`${socket.id}`).emit('joineRoomSucess', {roomName});
+
+    // for (let i = 0; i < users.length; i++) {
+    //   if (users[i].clientId !== socket.id) {
+    //     console.log(users[i].clientId);
+    //     socket.broadcast.to(users[i].clientId).emit('requestToJoin', roomName);
+    //   }
+    // }
+  });
 
   // disconnect is fired when a client leaves the server
   socket.on('disconnect', () => {
@@ -67,8 +83,8 @@ io.on('connection', socket => {
   });
 
   //mouse move event
-  socket.on('mousemove', (data) => {
-    io.emit('clientCursorMoved', data);
+  socket.on('mousemove', ({data,roomName}) => {
+    io.to(roomName).emit('clientCursorMoved', data);
   });
 
   socket.on('shapedrag', (data) => {

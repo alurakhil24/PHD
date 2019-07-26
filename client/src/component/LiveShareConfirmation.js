@@ -1,7 +1,7 @@
 import React from 'react';
 
 function LiveShareConfirmation(props) {
-    return <div class="modal" tabindex="-1" role="dialog" style={{'display': props.show ? 'block' : 'none' }}>
+    return <div class="modal" tabindex="-1" role="dialog" style={{ 'display': props.show ? 'block' : 'none' }}>
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -14,7 +14,7 @@ function LiveShareConfirmation(props) {
                     <p>Modal body text goes here.</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-dismiss="modal">Accept</button>
+                    <button type="button" class="btn btn-primary" data-dismiss="modal" onClick={props.handleAccept}>Accept</button>
                     <button type="button" class="btn btn-secondary" onClick={props.handleDecline}>Decline</button>
                 </div>
             </div>
