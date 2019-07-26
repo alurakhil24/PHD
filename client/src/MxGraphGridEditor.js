@@ -5,6 +5,7 @@ import ReactDOM from "react-dom";
 import { withSocket } from './socket';
 import cusrorImage from './resources/cursor.png';
 import CreateTaskNode from "./component/CreateTaskNode";
+import { notification } from 'antd';
 import "./common.css";
 import "./mxgraph.css";
 import {
@@ -114,7 +115,7 @@ class mxGraphGridAreaEditor extends Component {
       console.log('client listened')
       console.log(mousePosition);
 
-      let clientCursor = document.getElementById(`div${mousePosition.clientId}`);
+      let clientCursor = document.getElementById(`${mousePosition.clientId}`);
       if (clientCursor) {
 
         clientCursor.setAttribute("style", `background: red;left: ${mousePosition.x * this.state.width}px ; top:${mousePosition.y * this.state.height}px; position: absolute`);
@@ -139,7 +140,14 @@ class mxGraphGridAreaEditor extends Component {
       }) // change 'red' to this.state.color
 
 
-      this.props.socket.on('newclientAdded', (clients) => {
+      this.props.socket.on('newclientAdded', ({ clients, addedClient }) => {
+        if (addedClient.customId !== this.props.userName) {
+          const args = {
+            message: `${addedClient.customId} has joined the Live Share Session`,
+            duration: 1,
+          };
+          notification.open(args);
+        }
         for (let i = 0; i < clients.length; i++) {
           let clientInfo = clients[i];
           if (this.props.socket.id !== clientInfo.clientId) {
@@ -148,8 +156,8 @@ class mxGraphGridAreaEditor extends Component {
             if (!found) {
               let root = document.querySelector(".App");
               let cursorParent = document.createElement('div');
-              cursorParent.setAttribute('id', `div${clientInfo.clientId}`)
-              cursorParent.setAttribute('value', `div${clientInfo.id}`)
+              cursorParent.setAttribute('id', `${clientInfo.clientId}`)
+              cursorParent.setAttribute('value', `${clientInfo.id}`)
 
               cursorParent.innerHTML = clientInfo.customId;
               let cursor = document.createElement('img');
@@ -162,6 +170,7 @@ class mxGraphGridAreaEditor extends Component {
               cursorParent.appendChild(cursor);
               root.appendChild(cursorParent);
               cursor.innerHTML = clientInfo.clientId;
+            
             }
           }
         }
@@ -170,19 +179,22 @@ class mxGraphGridAreaEditor extends Component {
         });
       });
 
-      this.props.socket.on('clientDisconnected', (clients) => {
-        for (let i = 0; i < clients.length; i++) {
-          let clientInfo = clients[i];
-          if (!clientInfo.isMaster) {
-            let found = document.getElementById(clientInfo.clientId);
-            if (found) {
-              document.getElementById(clientInfo.clientId).outerHTML = "";
-            }
-          }
+      this.props.socket.on('clientDisconnected', (disconnectedClient) => {
+        console.log('inside the disconnect');
+        const app = document.querySelector('.App');
+        const clientToBeRemoved = document.querySelector(`#${disconnectedClient.clientId}`);
+        if (clientToBeRemoved) {
+          app.removeChild(clientToBeRemoved);
+          const args = {
+            message: `${disconnectedClient.customId} has been disconnected`,
+            duration: 1,
+          };
+          notification.open(args);
+          const clients = this.state.clients.filter(client => client.clientId !== disconnectedClient.clientId);
+          this.setState({
+            clients,
+          })
         }
-        this.setState({
-          clients,
-        });
       });
 
       this.props.socket.on('shapeDroppedOnClient', this.listenToShapeDroppedEvent);

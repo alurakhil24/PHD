@@ -14,7 +14,7 @@ class CustomSocket {
         this.socket = socketio.connect(config.url);
     }
 
-    // *** Auth API ***
+    // *** Auth API ***ur
 
 
     // doSignOut = () => this.auth.signOut();
