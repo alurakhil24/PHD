@@ -41,6 +41,8 @@ import {
   mxCompactTreeLayout,
   mxCellOverlay
 } from "mxgraph-js";
+import LiveShare from './component/LiveShare';
+import LiveShareConfirmation from './component/LiveShareConfirmation';
 // xml-< json
 class mxCellAttributeChange {
   // constructor
@@ -99,21 +101,12 @@ class mxGraphGridAreaEditor extends Component {
       currentNode: null,
       currentTask: "",
       width: window.innerWidth,
-      height: window.innerHeight
+      height: window.innerHeight,
+      confirmLiveShare: false,
     };
 
 
     this.LoadGraph = this.LoadGraph.bind(this);
-  }
-
-  mouseMoveHandler = (event) => {
-    console.log(event);
-    let cursorPosition = {};
-    cursorPosition.x = event.clientX / this.state.width;
-    cursorPosition.y = event.clientY / this.state.height;
-    cursorPosition.clientId = this.props.socket.id;
-    this.props.socket.emit('mousemove', cursorPosition) // change 'red' to this.state.color
-
   }
 
   handleClientCursors = () => {
@@ -149,7 +142,7 @@ class mxGraphGridAreaEditor extends Component {
       this.props.socket.on('newclientAdded', (clients) => {
         for (let i = 0; i < clients.length; i++) {
           let clientInfo = clients[i];
-          if(this.props.socket.id !== clientInfo.clientId){
+          if (this.props.socket.id !== clientInfo.clientId) {
 
             let found = document.getElementById(clientInfo.clientId);
             if (!found) {
@@ -157,7 +150,7 @@ class mxGraphGridAreaEditor extends Component {
               let cursorParent = document.createElement('div');
               cursorParent.setAttribute('id', `div${clientInfo.clientId}`)
               cursorParent.setAttribute('value', `div${clientInfo.id}`)
-               
+
               cursorParent.innerHTML = clientInfo.customId;
               let cursor = document.createElement('img');
               cursor.setAttribute("id", clientInfo.clientId);
@@ -172,12 +165,12 @@ class mxGraphGridAreaEditor extends Component {
             }
           }
         }
+        this.setState({
+          clients,
+        });
       });
 
       this.props.socket.on('clientDisconnected', (clients) => {
-        console.log('inside the disconnect');
-        console.log(clients);
-
         for (let i = 0; i < clients.length; i++) {
           let clientInfo = clients[i];
           if (!clientInfo.isMaster) {
@@ -185,13 +178,11 @@ class mxGraphGridAreaEditor extends Component {
             if (found) {
               document.getElementById(clientInfo.clientId).outerHTML = "";
             }
-
-            // let root = document.getElementById("app");
-            // var elem = document.getElementById(clientInfo.clientId);
-            // root.removeChild(elem);
-
           }
         }
+        this.setState({
+          clients,
+        });
       });
 
       this.props.socket.on('shapeDroppedOnClient', this.listenToShapeDroppedEvent);
@@ -214,6 +205,7 @@ class mxGraphGridAreaEditor extends Component {
   listenForClientSocketEvents = () => {
     this.handleClientCursors();
     this.handleClientMouseClick();
+    this.handleJoinRequest();
   }
   handleClientMouseClick = () => {
     this.props.socket.on('clientMouseClick', (mousePosition) => {
@@ -235,20 +227,20 @@ class mxGraphGridAreaEditor extends Component {
   }
 
   listenToShapeDroppedEvent = (shape) => {
-    if(shape) {
+    if (shape) {
       //console.log('shape dropped event ' +cell.id);
       let isSameShapeExists = false;
       const { graph } = this.state;
-      const { cell } =  shape;
+      const { cell } = shape;
       const { parent, children } = graph.getDefaultParent();
-      if (children && cell) {              
-       if(children.some(c => c.id === cell.id)){
-        isSameShapeExists = true;
-       }
-     }      
+      if (children && cell) {
+        if (children.some(c => c.id === cell.id)) {
+          isSameShapeExists = true;
+        }
+      }
 
-      if(!isSameShapeExists)
-       this.createShape(shape);
+      if (!isSameShapeExists)
+        this.createShape(shape);
     }
   }
 
@@ -543,7 +535,7 @@ class mxGraphGridAreaEditor extends Component {
     obj.setAttribute("desc", "");
 
     var parent = graph.getDefaultParent();
-   
+
     let cell = graph.insertVertex(
       parent,
       target,
@@ -557,8 +549,8 @@ class mxGraphGridAreaEditor extends Component {
     // this.addOverlays(graph, cell, true);
     graph.setSelectionCell(cell);
 
-    if(sameClient)
-     this.selectionChanged(graph, value);    
+    if (sameClient)
+      this.selectionChanged(graph, value);
     // if (cells != null && cells.length > 0)
     // {
     // 	graph.scrollCellToVisible(cells[0]);
@@ -819,8 +811,8 @@ class mxGraphGridAreaEditor extends Component {
   createShape = (shape = {}) => {
     const id = Math.ceil(Math.random() * 100);
     const { cell } = shape;
-    if(cell && cell.id) {
-      console.log('Shape is dropped ' +cell.id);
+    if (cell && cell.id) {
+      console.log('Shape is dropped ' + cell.id);
       this.funct(this.state.graph, '', '', cell.geometry.x, cell.geometry.y, '', false);
       //set id
     } else {
@@ -829,11 +821,56 @@ class mxGraphGridAreaEditor extends Component {
       this.applyHandler(graph, cell, "text", 'sampletext');
       this.applyHandler(graph, cell, "desc", 'sampledesc');
       // cell.setId(id || 100);
-      this.setState({ createVisile: false });  
+      this.setState({ createVisile: false });
       const { geometry, vertex, id, style } = cell;
-      const mxCell = { type: 'rectangle', geometry, vertex, id, style };    
-      this.props.socket.emit('shapeDropped', { shape: mxCell  });
+      const mxCell = { type: 'rectangle', geometry, vertex, id, style };
+      this.props.socket.emit('shapeDropped', { shape: mxCell });
     }
+  }
+
+  mouseMoveHandler = (event) => {
+    let cursorPosition = {};
+    cursorPosition.x = event.clientX / this.state.width;
+    cursorPosition.y = event.clientY / this.state.height;
+    cursorPosition.clientId = this.props.socket.id;
+    this.props.socket.emit('mousemove', cursorPosition) // change 'red' to this.state.color
+  }
+
+  handleJoinRequest = () => {
+    this.props.socket.on('requestToJoin', (roomName) => {
+      this.setState({
+        confirmLiveShare: true,
+      });
+    });
+  }
+  createRoom = () => {
+    this.props.socket.emit('create', { roomName: Math.random(), users: this.state.clients });
+  }
+
+  getAvailableUsers = () => {
+    if (this.state.clients) {
+      const usersList = this.state.clients.map((user) => {
+        if (this.props.userName !== user.customId) {
+          return <div class="input-group mb-3">
+            <div class="input-group-prepend">
+              <div class="input-group-text">
+                <input type="checkbox" aria-label="Checkbox for following text input" />
+              </div>
+            </div>
+            <input type="text" class="form-control" aria-label="Text input with checkbox" value={user.customId} />
+          </div>
+        }
+      });
+      this.setState({
+        usersList
+      });
+    }
+  }
+
+  handleDecline = () => {
+    this.setState({
+      confirmLiveShare: false,
+    });
   }
 
   render() {
@@ -871,7 +908,9 @@ class mxGraphGridAreaEditor extends Component {
             Shell task
           </li>
           <li id="layout123">layout</li>
+          <LiveShare usersList={this.state.usersList} getAvailableUsers={this.getAvailableUsers} handleSend={this.createRoom}/>
         </ul>
+        <LiveShareConfirmation show={this.state.confirmLiveShare} handleDecline={this.handleDecline} />
         <div className="toolbar" ref="toolbar" />
         <div className="container-wrapper">
           <div className="container" ref="divGraph" />

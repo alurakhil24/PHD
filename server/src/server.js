@@ -39,6 +39,16 @@ io.on('connection', socket => {
     io.sockets.emit('newclientAdded', clients);
   });
 
+  socket.on('create', function ({roomName, users}) {
+    socket.join(roomName);
+    for (let i = 0; i < users.length; i++){
+      if (users[i].clientId!== socket.id) {
+        console.log(users[i].clientId);
+        socket.broadcast.to(users[i].clientId).emit('requestToJoin', roomName);
+      }
+    }
+  });
+
   // just like on the client side, we have a socket.on method that takes a callback function
   socket.on('change color', (color) => {
     // once we get a 'change color' event from one of our clients, we will send it to the rest of the clients
