@@ -5,6 +5,7 @@ import ReactDOM from "react-dom";
 import { withSocket } from './socket';
 import cusrorImage from './resources/cursor.png';
 import CreateTaskNode from "./component/CreateTaskNode";
+import { Checkbox } from 'antd';
 import { notification } from 'antd';
 import "./common.css";
 import "./mxgraph.css";
@@ -176,7 +177,7 @@ class mxGraphGridAreaEditor extends Component {
               cursorParent.appendChild(cursor);
               root.appendChild(cursorParent);
               cursor.innerHTML = clientInfo.clientId;
-            
+
             }
           }
         }
@@ -805,7 +806,7 @@ class mxGraphGridAreaEditor extends Component {
           // Adds cells to the model in a single step
           graph.getModel().beginUpdate();
           try {
-           console.log('Loading graph');
+            console.log('Loading graph');
           } finally {
             // Updates the display
             graph.getModel().endUpdate();
@@ -840,14 +841,14 @@ class mxGraphGridAreaEditor extends Component {
 
 
 
-mouseMoveHandler = (event) => {
+  mouseMoveHandler = (event) => {
     let cursorPosition = {};
     cursorPosition.x = event.clientX / this.state.width;
     cursorPosition.y = event.clientY / this.state.height;
     cursorPosition.clientId = this.props.socket.id;
     this.props.socket.emit('mousemove', cursorPosition) // change 'red' to this.state.color
   }
-  
+
   handleJoinRequest = () => {
     this.props.socket.on('requestToJoin', (roomName) => {
       this.setState({
@@ -861,18 +862,19 @@ mouseMoveHandler = (event) => {
 
   getAvailableUsers = () => {
     if (this.state.clients) {
-      const usersList = this.state.clients.map((user) => {
-        if (this.props.userName !== user.customId) {
-          return <div class="input-group mb-3">
-            <div class="input-group-prepend">
-              <div class="input-group-text">
-                <input type="checkbox" aria-label="Checkbox for following text input" />
-              </div>
-            </div>
-            <input type="text" class="form-control" aria-label="Text input with checkbox" value={user.customId} />
-          </div>
-        }
-      });
+      const usersList = (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {this.state.clients.map((user) => {
+            if (this.props.userName !== user.customId) {
+              const options = this.state.clients.map(client => [{
+                label: client.customId,
+                value: client.customId,
+              }]);
+              return <Checkbox onChange={() => { }}>{user.customId}</Checkbox>
+            }
+          })}
+        </div>
+      );
       this.setState({
         usersList
       });
@@ -920,7 +922,7 @@ mouseMoveHandler = (event) => {
             line
           </li>
           <li id="layout123">layout</li>
-          <LiveShare usersList={this.state.usersList} getAvailableUsers={this.getAvailableUsers} handleSend={this.createRoom}/>
+          <LiveShare usersList={this.state.usersList} getAvailableUsers={this.getAvailableUsers} handleSend={this.createRoom} />
         </ul>
         <LiveShareConfirmation show={this.state.confirmLiveShare} handleDecline={this.handleDecline} />
         <div className="toolbar" ref="toolbar" />
