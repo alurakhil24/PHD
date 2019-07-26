@@ -861,8 +861,6 @@ class mxGraphGridAreaEditor extends Component {
     }
   }
 
-
-
   mouseMoveHandler = (event) => {
     let cursorPosition = {};
     cursorPosition.x = event.clientX / this.state.width;
