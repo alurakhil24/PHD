@@ -119,10 +119,7 @@ class mxGraphGridAreaEditor extends Component {
 
   handleClientCursors = () => {
     this.props.socket.on('clientCursorMoved', (mousePosition) => {
-      console.log('client listened')
-      console.log(mousePosition);
-
-      let clientCursor = document.getElementById(`div${mousePosition.clientId}`);
+      let clientCursor = document.getElementById(`#${mousePosition.clientId}`);
       if (clientCursor) {
 
         clientCursor.setAttribute("style", `background: red;left: ${mousePosition.x * this.state.width}px ; top:${mousePosition.y * this.state.height}px; position: absolute`);
@@ -157,7 +154,7 @@ class mxGraphGridAreaEditor extends Component {
             if (!found) {
               let root = document.querySelector(".App");
               let cursorParent = document.createElement('div');
-              cursorParent.setAttribute('id', `${clientInfo.clientId}`)
+              cursorParent.setAttribute('id', `#${clientInfo.clientId}`)
               cursorParent.setAttribute('value', `${clientInfo.id}`)
 
               cursorParent.innerHTML = clientInfo.customId;
@@ -469,7 +466,7 @@ class mxGraphGridAreaEditor extends Component {
       currentNode: graph.getSelectionCell(),
       currentTask: value
     });
-    
+
   };
   createPopupMenu = (graph, menu, cell, evt) => {
     if (cell) {
