@@ -44,6 +44,12 @@ import {
 } from "mxgraph-js";
 import LiveShare from './component/LiveShare';
 import LiveShareConfirmation from './component/LiveShareConfirmation';
+import imgHLine from './resources/Horizontal Line.svg';
+import imgVLine from './resources/Vertical Line.svg';
+import imgBox from './resources/Box.svg';
+import imgEllipse from './resources/Ellipse.svg';
+import imgTriangle from './resources/Triangle.svg';
+
 // xml-< json
 class mxCellAttributeChange {
   // constructor
@@ -115,7 +121,7 @@ class mxGraphGridAreaEditor extends Component {
       console.log('client listened')
       console.log(mousePosition);
 
-      let clientCursor = document.getElementById(`${mousePosition.clientId}`);
+      let clientCursor = document.getElementById(`div${mousePosition.clientId}`);
       if (clientCursor) {
 
         clientCursor.setAttribute("style", `background: red;left: ${mousePosition.x * this.state.width}px ; top:${mousePosition.y * this.state.height}px; position: absolute`);
@@ -238,20 +244,12 @@ class mxGraphGridAreaEditor extends Component {
 
   }
 
-  listenToShapeDroppedEvent = (shape) => {
-    if (shape) {
+  listenToShapeDroppedEvent = (data) => {
+    if (data) {
       //console.log('shape dropped event ' +cell.id);
       let isSameShapeExists = false;
-      const { graph } = this.state;
-      const { cell } = shape;
-      const { parent, children } = graph.getDefaultParent();
-      if (children && cell) {
-        if (children.some(c => c.id === cell.id)) {
-          isSameShapeExists = true;
-        }
-      }
-
-      if (!isSameShapeExists)
+      const { shape, clientId } = data;
+      if (this.props.socket.id !== clientId)
         this.createShape(shape);
     }
   }
@@ -414,11 +412,12 @@ class mxGraphGridAreaEditor extends Component {
     ).querySelectorAll(".task");
     Array.prototype.slice.call(tasksDrag).forEach(ele => {
       const value = ele.getAttribute("data-value");
+      let style = this.getShapeStyle(value);
       let ds = mxUtils.makeDraggable(
         ele,
         this.graphF,
         (graph, evt, target, x, y) =>
-          this.funct(graph, evt, target, x, y, value),
+          this.funct(graph, evt, target, x, y, style, value),
         this.dragElt,
         null,
         null,
@@ -431,6 +430,28 @@ class mxGraphGridAreaEditor extends Component {
       ds.createDragElement = mxDragSource.prototype.createDragElement;
     });
   };
+
+  getShapeStyle = (shapeType) => {
+    let style = '';
+    switch (shapeType) {
+      case 'triangle':
+        style = 'shape=triangle;fillColor=White;direction=north;strokeWidth=1;';
+        break;
+      case 'rectangle':
+        style = 'shape=rectangle;fillColor=White;strokeWidth=1;';
+        break;
+      case 'ellipse':
+        style = 'shape=ellipse;perimeter=ellipsePerimeter;direction=north;fillColor=White;strokeWidth=1;';
+        break;
+      case 'line':
+        style = 'shape=line;fillColor=White;strokeWidth=1;';
+        break;
+      default:
+        style = 'shape=triangle;fillColor=White;direction=north;strokeWidth=1;';
+    }
+    return style;
+  }
+
   selectionChanged = (graph, value) => {
     console.log("visible");
     this.setState({
@@ -539,10 +560,10 @@ class mxGraphGridAreaEditor extends Component {
     };
   };
 
-  funct = (graph, evt, target, x, y, value, sameClient = true, shape = {}) => {
+  funct = (graph, evt, target, x, y, style, shapeType, selection = true) => {
     var doc = mxUtils.createXmlDocument();
     var obj = doc.createElement("TaskObject");
-    obj.setAttribute("label", value);
+    obj.setAttribute("label", ' ');
     obj.setAttribute("text", "");
     obj.setAttribute("desc", "");
 
@@ -556,13 +577,14 @@ class mxGraphGridAreaEditor extends Component {
       y,
       150,
       60,
-      "strokeColor=#000000;strokeWidth=1;fillColor=white"
+      style
     );
+    cell.shapeType = shapeType;
     // this.addOverlays(graph, cell, true);
     graph.setSelectionCell(cell);
 
-    if (sameClient)
-      this.selectionChanged(graph, value);
+    if (selection)
+      this.selectionChanged(graph, style);
     // if (cells != null && cells.length > 0)
     // {
     // 	graph.scrollCellToVisible(cells[0]);
@@ -783,27 +805,7 @@ class mxGraphGridAreaEditor extends Component {
           // Adds cells to the model in a single step
           graph.getModel().beginUpdate();
           try {
-            var v0 = graph.insertVertex(
-              parent,
-              null,
-              "dgfgdg,",
-              120,
-              240,
-              80,
-              30,
-              "shape=ellipse"
-            );
-            var v1 = graph.insertVertex(parent, null, "Hello,", 20, 20, 80, 30);
-            var v2 = graph.insertVertex(
-              parent,
-              null,
-              "World!",
-              200,
-              150,
-              80,
-              30
-            );
-            var e1 = graph.insertEdge(parent, null, "", v1, v2);
+           console.log('Loading graph');
           } finally {
             // Updates the display
             graph.getModel().endUpdate();
@@ -820,34 +822,32 @@ class mxGraphGridAreaEditor extends Component {
     }
   }
 
-  createShape = (shape = {}) => {
+  createShape = (cell = {}) => {
     const id = Math.ceil(Math.random() * 100);
-    const { cell } = shape;
+    //` const { cell } = shape;
     if (cell && cell.id) {
-      console.log('Shape is dropped ' + cell.id);
-      this.funct(this.state.graph, '', '', cell.geometry.x, cell.geometry.y, '', false);
-      //set id
+      this.funct(this.state.graph, '', '', cell.geometry.x, cell.geometry.y, this.getShapeStyle(cell.shapeType), cell.shapeType, false);
+      this.setState({ createVisile: false });
     } else {
       const { graph } = this.state;
       const cell = graph.getSelectionCell();
-      this.applyHandler(graph, cell, "text", 'sampletext');
-      this.applyHandler(graph, cell, "desc", 'sampledesc');
-      // cell.setId(id || 100);
       this.setState({ createVisile: false });
-      const { geometry, vertex, id, style } = cell;
-      const mxCell = { type: 'rectangle', geometry, vertex, id, style };
-      this.props.socket.emit('shapeDropped', { shape: mxCell });
+      const { geometry, vertex, id, style, shapeType } = cell;
+      const mxCell = { shapeType, geometry, vertex, id, style };
+      this.props.socket.emit('shapeDropped', { shape: mxCell, clientId: this.props.socket.id });
     }
   }
 
-  mouseMoveHandler = (event) => {
+
+
+mouseMoveHandler = (event) => {
     let cursorPosition = {};
     cursorPosition.x = event.clientX / this.state.width;
     cursorPosition.y = event.clientY / this.state.height;
     cursorPosition.clientId = this.props.socket.id;
     this.props.socket.emit('mousemove', cursorPosition) // change 'red' to this.state.color
   }
-
+  
   handleJoinRequest = () => {
     this.props.socket.on('requestToJoin', (roomName) => {
       this.setState({
@@ -895,29 +895,29 @@ class mxGraphGridAreaEditor extends Component {
           <li
             className="task"
             data-title="Kafka->HDFS"
-            data-value="Channel task"
-          >
-            rectangle
+            data-value="rectangle"
+          > rectangle
           </li>
           <li
             className="task"
-            data-title="A/B test task"
-            data-value="A/B test task"
+            data-title="Kafka->HDFS"
+            data-value="triangle"
           >
-            A/Btest task
+            triangle
           </li>
           <li
             className="task"
-            data-title="Hive->Email"
-            data-value="Report task"
+            data-title="Kafka->HDFS"
+            data-value="ellipse"
           >
-            Report task
+            ellipse
           </li>
-          <li className="task" data-title="Hive->Hive" data-value="HSQL task">
-            HSQL task
-          </li>
-          <li className="task" data-title="Shell task" data-value="Shell task">
-            Shell task
+          <li
+            className="task"
+            data-title="Kafka->HDFS"
+            data-value="line"
+          >
+            line
           </li>
           <li id="layout123">layout</li>
           <LiveShare usersList={this.state.usersList} getAvailableUsers={this.getAvailableUsers} handleSend={this.createRoom}/>

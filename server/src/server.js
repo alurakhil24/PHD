@@ -44,7 +44,7 @@ io.on('connection', socket => {
         socket.broadcast.to(users[i].clientId).emit('requestToJoin', roomName);
       }
     }
-  });
+    });
 
   // just like on the client side, we have a socket.on method that takes a callback function
   socket.on('change color', (color) => {
@@ -94,7 +94,7 @@ io.on('connection', socket => {
     io.emit('shapedragged', { x: data.x, y: data.y, uname: data.uname });
   });
   socket.on('shapeDropped', (data) => {
-    io.emit('shapeDroppedOnClient', { cell: data.shape });
+    io.emit('shapeDroppedOnClient', { ...data });
   })
 })
 server.listen(port, () => console.log(`Listening on port ${port}`))
