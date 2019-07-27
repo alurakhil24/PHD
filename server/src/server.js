@@ -14,7 +14,7 @@ const server = http.createServer(app)
 const io = socketIO(server)
 
 var clients = [];
-
+var rooms = []
 
 // This is what the socket.io syntax is like, we will work this later
 io.on('connection', socket => {
@@ -34,12 +34,18 @@ io.on('connection', socket => {
     io.sockets.emit('newclientAdded', { clients, addedClient: data });
   });
 
-  socket.on('create', function ({ roomName, users }) {
+  socket.on('create', function ({ roomName, users, masterUser }) {
     socket.join(roomName);
+    rooms.push({
+      master: socket.id,
+      roomName,
+    })
+
     for (let i = 0; i < users.length; i++) {
+
       if (users[i].clientId !== socket.id) {
         console.log(users[i].clientId);
-        socket.broadcast.to(users[i].clientId).emit('requestToJoin', roomName);
+        socket.broadcast.to(users[i].clientId).emit('requestToJoin', {roomName, user: masterUser});
       }
     }
   });
@@ -116,12 +122,16 @@ io.on('connection', socket => {
   });
 
   //instancce sync api
-  socket.on('getMasterInstance', ({ clientInfo }) => {
-    console.log(clientInfo);
-    io.to(clientInfo.clientId).emit('getMasterVertexes', { clientRequesting: socket.id });
+  socket.on('getMasterInstance', ({ roomName }) => {
+    rooms.forEach((room) => {
+      if (room.roomName === roomName) {
+        io.to(`${room.master}`).emit('getMasterVertexes', { clientRequesting: socket.id });
+      }
+    });
   });
-  socket.on('setMasterInstance', ({ clientId, vertexes }) => {
-    io.to(clientId).emit('getMasterVertexes', { vertexes });
+  socket.on('sendMasterInstance', ({ clientId, vertexes }) => {
+    console.log(vertexes);
+    io.to(`${clientId}`).emit('setMasterVertexes', { vertexes });
   });
 
 })

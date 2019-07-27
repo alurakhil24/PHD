@@ -113,6 +113,7 @@ class mxGraphGridAreaEditor extends Component {
       confirmLiveShare: false,
       roomName: null,
       isClientConnectedtoRoom: false,
+      masterUser: '',
     };
 
 
@@ -925,16 +926,17 @@ class mxGraphGridAreaEditor extends Component {
   }
 
   handleJoinRequest = () => {
-    this.props.socket.on('requestToJoin', (roomName) => {
+    this.props.socket.on('requestToJoin', ({roomName, user}) => {
       this.setState({
         confirmLiveShare: true,
-        roomName
+        roomName,
+        masterUser: user,
       });
     });
   }
   createRoom = () => {
     const roomName = Math.random();
-    this.props.socket.emit('create', { roomName, users: this.state.authorisedUsers });
+    this.props.socket.emit('create', { roomName, users: this.state.authorisedUsers, masterUser: this.props.userName });
     notification.open({
       message: 'Sent Requests',
       duration: 1
@@ -1058,18 +1060,32 @@ class mxGraphGridAreaEditor extends Component {
   sendMasterInstance = () => {
     this.props.socket.on('getMasterVertexes', ({ clientRequesting }) => {
       const vertexes = this.state.graph.getChildVertices(this.state.graph.getDefaultParent());
-      this.props.socket.emit('sendMasterInstance', { clientRequesting, vertexes });
+      let newVertexes = [];
+      vertexes.forEach((vertex) => {
+        const item = {
+          x: vertex.geometry.x,
+          y: vertex.geometry.y,
+          width: vertex.geometry.width,
+          height: vertex.geometry.height,
+          id: vertex.id,
+          style: vertex.style,
+          shapeType: vertex.shapeType
+        };
+        newVertexes.push(item);
+      });
+      this.props.socket.emit('sendMasterInstance', { clientId: clientRequesting, vertexes: newVertexes });
     });
   }
 
   handleInstanceSync = () => {
-    this.props.socket.on('getMasterVertexes', ({ vertexes }) => {
+    this.props.socket.on('setMasterVertexes', ({ vertexes }) => {
+      console.log(vertexes);
       this.LoadVertexes(vertexes);
     });
   }
   LoadVertexes = (vertexes) => {
     const { graph } = this.state;
-
+    console.log(vertexes);
     try {
       if (vertexes) {
         graph.getModel().beginUpdate();
@@ -1077,8 +1093,8 @@ class mxGraphGridAreaEditor extends Component {
 
         vertexes.forEach((vertex) => {
           console.log(vertex);
-          let cell = graph.insertVertex(parent, null, null, vertex.geometry.x, vertex.geometry.y, vertex.geometry.width,
-            vertex.geometry.height, this.getShapeStyle(vertex.shapeType));
+          let cell = graph.insertVertex(parent, null, null, vertex.x, vertex.y, vertex.width,
+            vertex.height, this.getShapeStyle(vertex.shapeType));
           cell.setId(vertex.id);
         });
       }
@@ -1097,7 +1113,7 @@ class mxGraphGridAreaEditor extends Component {
     //   }
     // });
     // console.log(Master);
-    // this.props.socket.emit('getMasterInstance', { clientInfo: Master });
+    this.props.socket.emit('getMasterInstance', { roomName: this.state.roomName });
 
     this.setState({
       confirmLiveShare: false,
@@ -1148,7 +1164,7 @@ class mxGraphGridAreaEditor extends Component {
           <li id="layout123">layout</li>
           <LiveShare usersList={this.state.usersList} getAvailableUsers={this.getAvailableUsers} handleSend={this.createRoom} />
         </ul>
-        <LiveShareConfirmation show={this.state.confirmLiveShare} handleAccept={this.handleAccept} handleDecline={this.handleDecline} />
+        <LiveShareConfirmation user={this.state.masterUser} show={this.state.confirmLiveShare} handleAccept={this.handleAccept} handleDecline={this.handleDecline} />
         <div className="toolbar" ref="toolbar" />
         <div className="container-wrapper">
           <div className="container" ref="divGraph" />
