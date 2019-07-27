@@ -50,6 +50,7 @@ import imgVLine from './resources/Vertical Line.svg';
 import imgBox from './resources/Box.svg';
 import imgEllipse from './resources/Ellipse.svg';
 import imgTriangle from './resources/Triangle.svg';
+import { generateRandomColor, invertColor } from "./helper";
 
 // xml-< json
 class mxCellAttributeChange {
@@ -125,7 +126,7 @@ class mxGraphGridAreaEditor extends Component {
       let clientCursor = document.getElementById(`#${mousePosition.clientId}`);
       if (clientCursor) {
 
-        clientCursor.setAttribute("style", `background: red;left: ${mousePosition.x * this.state.width}px ; top:${mousePosition.y * this.state.height}px; position: absolute`);
+        clientCursor.setAttribute("style", `left: ${mousePosition.x * this.state.width}px ; top:${mousePosition.y * this.state.height}px; position: absolute`);
 
       }
     });
@@ -229,20 +230,24 @@ class mxGraphGridAreaEditor extends Component {
     if (clientInfo && this.props.socket.id !== clientInfo.clientId) {
       let found = document.getElementById(clientInfo.clientId);
       if (!found) {
+        const textBackgroundColor = generateRandomColor();
+        const textColor = invertColor(textBackgroundColor);
         let root = document.querySelector(".App");
         let cursorParent = document.createElement('div');
         cursorParent.setAttribute('id', `#${clientInfo.clientId}`)
         cursorParent.setAttribute('value', `${clientInfo.customId}`)
-
-        cursorParent.innerHTML = clientInfo.customId;
+        cursorParent.setAttribute('style', `display: flex; flex-direction:column; align-items: center`);
+        let cursorText = document.createElement('div');
+        cursorText.innerHTML = clientInfo.customId
+        cursorText.setAttribute('style', `color: ${textColor}; background: ${textBackgroundColor}`);
         let cursor = document.createElement('img');
         cursor.setAttribute("id", clientInfo.clientId);
         cursor.setAttribute("src", cusrorImage);
-        cursor.setAttribute('position', 'absolute');
         cursor.setAttribute("width", '20px');
         cursor.setAttribute("height", '20px');
-        cursor.setAttribute("style", `color: balck;background:blue;z-index: 20; position: absolute`);
+        cursor.setAttribute("style", `marginBottom: 4px`);
         cursorParent.appendChild(cursor);
+        cursorParent.appendChild(cursorText);
         root.appendChild(cursorParent);
         cursor.innerHTML = clientInfo.clientId;
 
