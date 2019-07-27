@@ -27,14 +27,14 @@ export default class Login extends Component {
     return (
       <div className="container-fluid">
         <div className="row">
-          <div className="col">
+          <div className="col ">
             <div style={{ background: 'unset' }} className="jumbotron jumbotron-fluid">
               <img src={banner} style={{ height: '20vh', width: '100%' }} />
             </div>
           </div>
         </div>
         <div className="row justify-content-center">
-          <div className="col-2">
+          <div className="col-2 col-md-5 col-sm-6">
             <form onSubmit={(e) =>{e.preventDefault(); this.handleSubmit();} }>
               <div class="form-group">
                 <input type="text" onChange={this.handleChange} class="form-control" id="username" aria-describedby="user" placeholder="Enter Username..." />
