@@ -34,10 +34,10 @@ io.on('connection', socket => {
     io.sockets.emit('newclientAdded', { clients, addedClient: data });
   });
 
-  socket.on('create', function ({roomName, users}) {
+  socket.on('create', function ({ roomName, users }) {
     socket.join(roomName);
-    for (let i = 0; i < users.length; i++){
-      if (users[i].clientId!== socket.id) {
+    for (let i = 0; i < users.length; i++) {
+      if (users[i].clientId !== socket.id) {
         console.log(users[i].clientId);
         socket.broadcast.to(users[i].clientId).emit('requestToJoin', roomName);
       }
@@ -45,19 +45,32 @@ io.on('connection', socket => {
   });
 
 
-  socket.on('joinRoom', function ({ roomName, user }) {
-    console.log('joinRoom triggered :::' + roomName);
+  socket.on('joinRoom', function ({ roomName }) {
     socket.join(roomName);
-    console.log(socket.id);
-    socket.to(roomName).emit('newUserJoinedRoom', "let's play a game");
-    io.to(`${socket.id}`).emit('joineRoomSucess', {roomName});
+    let clientInfo = undefined;
 
-    // for (let i = 0; i < users.length; i++) {
-    //   if (users[i].clientId !== socket.id) {
-    //     console.log(users[i].clientId);
-    //     socket.broadcast.to(users[i].clientId).emit('requestToJoin', roomName);
-    //   }
-    // }
+
+    const connectedClients = io.sockets.adapter.rooms[roomName];
+    const connected = Object.keys(connectedClients);
+    const infoClients = [];
+    clients.forEach((client) => {
+      if (client.clientId === socket.id) {
+        clientInfo = client;
+      }
+      connected.forEach(
+        (connectedId) => {
+          if (client.clientId !== connectedId) {
+            infoClients.push(client);
+          }
+        }
+      );
+      return;
+    });
+    // roster.forEach(function (client) {
+    //   console.log('Username: ' + client.customId);
+    // });
+    socket.to(roomName).emit('newUserJoinedRoom', { clientInfo });
+    io.to(`${socket.id}`).emit('joineRoomSucess', { roomName, infoClients });
   });
 
   // disconnect is fired when a client leaves the server
@@ -83,23 +96,33 @@ io.on('connection', socket => {
   });
 
   //mouse move event
-  socket.on('mousemove', ({data,roomName}) => {
+  socket.on('mousemove', ({ data, roomName }) => {
     io.to(roomName).emit('clientCursorMoved', data);
   });
 
-  socket.on('shapedrag', (data) => {
-    io.emit('shapedragged', { x: data.x, y: data.y, uname: data.uname });
+  socket.on('shapedrag', ({ data, roomName }) => {
+    io.to(roomName).emit('shapedragged', { x: data.x, y: data.y, uname: data.uname });
   });
-  socket.on('shapeDropped', (data) => {
-    io.emit('shapeDroppedOnClient', { ...data });
+  socket.on('shapeDropped', ({ data, roomName }) => {
+    io.to(roomName).emit('shapeDroppedOnClient', { ...data });
   });
-  socket.on('shapeSelected', (data) => {
-    const {clientId,shape} = data;
-    io.emit('shapeSelectedOnClient', { ...data });
+  socket.on('shapeSelected', ({ data, roomName }) => {
+    const { clientId, shape } = data;
+    io.to(roomName).emit('shapeSelectedOnClient', { ...data });
   });
-  socket.on('shapeMoved', (data) => {
-    const {clientId,shape} = data;
-    io.emit('shapeMovedOnClient', { ...data });
+  socket.on('shapeMoved', ({ data, roomName }) => {
+    const { clientId, shape } = data;
+    io.to(roomName).emit('shapeMovedOnClient', { ...data });
   });
+
+  //instancce sync api
+  socket.on('getMasterInstance', ({ clientInfo }) => {
+    console.log(clientInfo);
+    io.to(clientInfo.clientId).emit('getMasterVertexes', { clientRequesting: socket.id });
+  });
+  socket.on('setMasterInstance', ({ clientId, vertexes }) => {
+    io.to(clientId).emit('getMasterVertexes', { vertexes });
+  });
+
 })
 server.listen(port, () => console.log(`Listening on port ${port}`))

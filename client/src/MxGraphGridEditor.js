@@ -112,6 +112,7 @@ class mxGraphGridAreaEditor extends Component {
       height: window.innerHeight,
       confirmLiveShare: false,
       roomName: null,
+      isClientConnectedtoRoom: false,
     };
 
 
@@ -137,42 +138,45 @@ class mxGraphGridAreaEditor extends Component {
         customId: this.props.userName,
         clientId: this.props.socket.id,
       })
-
+      this.currentClient = {
+        customId: this.props.userName,
+        clientId: this.props.socket.id,
+      };
 
       this.props.socket.on('newclientAdded', ({ clients, addedClient }) => {
         if (addedClient.customId !== this.props.userName) {
           const args = {
-            message: `${addedClient.customId} has joined the Live Share Session`,
+            message: `${addedClient.customId} is online`,
             duration: 1,
           };
           notification.open(args);
         }
-        for (let i = 0; i < clients.length; i++) {
-          let clientInfo = clients[i];
-          if (this.props.socket.id !== clientInfo.clientId) {
+        // for (let i = 0; i < clients.length; i++) {
+        //   let clientInfo = clients[i];
+        //   if (this.props.socket.id !== clientInfo.clientId) {
 
-            let found = document.getElementById(clientInfo.clientId);
-            if (!found) {
-              let root = document.querySelector(".App");
-              let cursorParent = document.createElement('div');
-              cursorParent.setAttribute('id', `#${clientInfo.clientId}`)
-              cursorParent.setAttribute('value', `${clientInfo.id}`)
+        //     let found = document.getElementById(clientInfo.clientId);
+        //     if (!found) {
+        //       let root = document.querySelector(".App");
+        //       let cursorParent = document.createElement('div');
+        //       cursorParent.setAttribute('id', `#${clientInfo.clientId}`)
+        //       cursorParent.setAttribute('value', `${clientInfo.id}`)
 
-              cursorParent.innerHTML = clientInfo.customId;
-              let cursor = document.createElement('img');
-              cursor.setAttribute("id", clientInfo.clientId);
-              cursor.setAttribute("src", cusrorImage);
-              cursor.setAttribute('position', 'absolute');
-              cursor.setAttribute("width", '20px');
-              cursor.setAttribute("height", '20px');
-              cursor.setAttribute("style", `background:blue;z-index: 20; position: absolute`);
-              cursorParent.appendChild(cursor);
-              root.appendChild(cursorParent);
-              cursor.innerHTML = clientInfo.clientId;
+        //       cursorParent.innerHTML = clientInfo.customId;
+        //       let cursor = document.createElement('img');
+        //       cursor.setAttribute("id", clientInfo.clientId);
+        //       cursor.setAttribute("src", cusrorImage);
+        //       cursor.setAttribute('position', 'absolute');
+        //       cursor.setAttribute("width", '20px');
+        //       cursor.setAttribute("height", '20px');
+        //       cursor.setAttribute("style", `background:blue;z-index: 20; position: absolute`);
+        //       cursorParent.appendChild(cursor);
+        //       root.appendChild(cursorParent);
+        //       cursor.innerHTML = clientInfo.clientId;
 
-            }
-          }
-        }
+        //     }
+        //   }
+        // }
         this.setState({
           clients,
         });
@@ -213,13 +217,36 @@ class mxGraphGridAreaEditor extends Component {
 
   }
 
-  newUserJoinedRoom = () => {
+  newUserJoinedRoom = ({ clientInfo }) => {
     notification.open(
       {
         message: 'new user joined',
         duration: 2
+      });
+
+
+    if (clientInfo && this.props.socket.id !== clientInfo.clientId) {
+      let found = document.getElementById(clientInfo.clientId);
+      if (!found) {
+        let root = document.querySelector(".App");
+        let cursorParent = document.createElement('div');
+        cursorParent.setAttribute('id', `#${clientInfo.clientId}`)
+        cursorParent.setAttribute('value', `${clientInfo.customId}`)
+
+        cursorParent.innerHTML = clientInfo.customId;
+        let cursor = document.createElement('img');
+        cursor.setAttribute("id", clientInfo.clientId);
+        cursor.setAttribute("src", cusrorImage);
+        cursor.setAttribute('position', 'absolute');
+        cursor.setAttribute("width", '20px');
+        cursor.setAttribute("height", '20px');
+        cursor.setAttribute("style", `color: balck;background:blue;z-index: 20; position: absolute`);
+        cursorParent.appendChild(cursor);
+        root.appendChild(cursorParent);
+        cursor.innerHTML = clientInfo.clientId;
+
       }
-    )
+    }
   }
 
   updateWindowDimensions = () => {
@@ -233,6 +260,8 @@ class mxGraphGridAreaEditor extends Component {
     this.handleClientCursors();
     this.handleClientMouseClick();
     this.handleJoinRequest();
+    this.sendMasterInstance();
+    this.handleInstanceSync();
   }
   handleClientMouseClick = () => {
     this.props.socket.on('clientMouseClick', (mousePosition) => {
@@ -633,7 +662,7 @@ class mxGraphGridAreaEditor extends Component {
     if (graph.getSelectionCell()) {
       const { geometry, id, style, value } = graph.getSelectionCell();
       const mxCell = { geometry, id, style, value };
-      this.props.socket.emit('shapeMoved', { shape: mxCell, clientId: this.props.socket.id });
+      this.props.socket.emit('shapeMoved', { data: { shape: mxCell, clientId: this.props.socket.id }, roomName: this.state.roomName });
     }
   }
   selectionChange = (sender, evt) => {
@@ -873,17 +902,25 @@ class mxGraphGridAreaEditor extends Component {
       this.setState({ createVisile: false });
       const { geometry, vertex, id, style, shapeType } = cell;
       const mxCell = { shapeType, geometry, vertex, id, style };
-      this.props.socket.emit('shapeDropped', { shape: mxCell, clientId: this.props.socket.id });
+      this.props.socket.emit('shapeDropped', { data: { shape: mxCell, clientId: this.props.socket.id }, roomName: this.state.roomName });
     }
   }
 
   mouseMoveHandler = (event) => {
-    if (this.props.roomName !== null) {
+    if (this.state.roomName !== null) {
       let cursorPosition = {};
       cursorPosition.x = event.clientX / this.state.width;
       cursorPosition.y = event.clientY / this.state.height;
       cursorPosition.clientId = this.props.socket.id;
-      this.props.socket.emit('mousemove', { data: cursorPosition, roomName: this.state.roomName }) // change 'red' to this.state.color
+      let isMaster = true;
+      this.state.clients.forEach((client) => {
+        if (client.clientId === this.props.socket.id && client.isMaster) {
+          isMaster = true;
+        }
+      });
+      if (this.state.isClientConnectedtoRoom || isMaster) {
+        this.props.socket.emit('mousemove', { data: cursorPosition, roomName: this.state.roomName }) // change 'red' to this.state.color
+      }
     }
   }
 
@@ -957,17 +994,114 @@ class mxGraphGridAreaEditor extends Component {
       })
     }
   }
-  handleRoomJoinSucess = ({ roomName }) => {
-
+  handleRoomJoinSucess = ({ roomName, infoClients }) => {
+    console.log(infoClients);
     notification.open({
       message: 'joined Room :::' + roomName,
       duration: 1
     });
+    for (let i = 0; i < infoClients.length; i++) {
+      let clientInfo = infoClients[i];
+      if (this.props.socket.id !== clientInfo.clientId) {
+
+        let found = document.getElementById(clientInfo.clientId);
+        if (!found) {
+          let root = document.querySelector(".App");
+          let cursorParent = document.createElement('div');
+          cursorParent.setAttribute('id', `#${clientInfo.clientId}`)
+          cursorParent.setAttribute('value', `${clientInfo.customId}`)
+
+          cursorParent.innerHTML = clientInfo.customId;
+          let cursor = document.createElement('img');
+          cursor.setAttribute("id", clientInfo.clientId);
+          cursor.setAttribute("src", cusrorImage);
+          cursor.setAttribute('position', 'absolute');
+          cursor.setAttribute("width", '20px');
+          cursor.setAttribute("height", '20px');
+          cursor.setAttribute("style", `color: balck;background:blue;z-index: 20; position: absolute`);
+          cursorParent.appendChild(cursor);
+          root.appendChild(cursorParent);
+          cursor.innerHTML = clientInfo.clientId;
+
+        }
+      }
+    }
+    // infoClients.forEach(
+    //   (connectedId) => {
+    //     if (this.props.socket.id !== connectedId) {
+    //       let found = document.getElementById(connectedId);
+    //       if (!found) {
+    //         let root = document.querySelector(".App");
+    //         let cursorParent = document.createElement('div');
+    //         cursorParent.setAttribute('id', `#${connectedId}`)
+    //         cursorParent.setAttribute('value', `${connectedId}`)
+
+    //         cursorParent.innerHTML = clientInfo.customId;
+    //         let cursor = document.createElement('img');
+    //         cursor.setAttribute("id", connectedId);
+    //         cursor.setAttribute("src", cusrorImage);
+    //         cursor.setAttribute('position', 'absolute');
+    //         cursor.setAttribute("width", '20px');
+    //         cursor.setAttribute("height", '20px');
+    //         cursor.setAttribute("style", `color: balck;background:blue;z-index: 20; position: absolute`);
+    //         cursorParent.appendChild(cursor);
+    //         root.appendChild(cursorParent);
+    //         cursor.innerHTML = connectedId;
+
+    //       }
+    //     }
+    //   }
+    // )
+
+  }
+
+  sendMasterInstance = () => {
+    this.props.socket.on('getMasterVertexes', ({ clientRequesting }) => {
+      const vertexes = this.state.graph.getChildVertices(this.state.graph.getDefaultParent());
+      this.props.socket.emit('sendMasterInstance', { clientRequesting, vertexes });
+    });
+  }
+
+  handleInstanceSync = () => {
+    this.props.socket.on('getMasterVertexes', ({ vertexes }) => {
+      this.LoadVertexes(vertexes);
+    });
+  }
+  LoadVertexes = (vertexes) => {
+    const { graph } = this.state;
+
+    try {
+      if (vertexes) {
+        graph.getModel().beginUpdate();
+        var parent = graph.getDefaultParent();
+
+        vertexes.forEach((vertex) => {
+          console.log(vertex);
+          let cell = graph.insertVertex(parent, null, null, vertex.geometry.x, vertex.geometry.y, vertex.geometry.width,
+            vertex.geometry.height, this.getShapeStyle(vertex.shapeType));
+          cell.setId(vertex.id);
+        });
+      }
+    } catch (error) {
+
+    } finally {
+      graph.getModel().endUpdate();
+    }
   }
   handleAccept = () => {
     this.props.socket.emit('joinRoom', { roomName: this.state.roomName });
+    let Master;
+    // this.state.clients.forEach((client) => {
+    //   if (client.clientId === this.props.socket.id && client.isMaster) {
+    //     Master = client;
+    //   }
+    // });
+    // console.log(Master);
+    // this.props.socket.emit('getMasterInstance', { clientInfo: Master });
+
     this.setState({
       confirmLiveShare: false,
+      isClientConnectedtoRoom: true,
     });
   }
 
