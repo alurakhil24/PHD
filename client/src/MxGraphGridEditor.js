@@ -187,7 +187,7 @@ class mxGraphGridAreaEditor extends Component {
       this.props.socket.on('clientDisconnected', (disconnectedClient) => {
         console.log('inside the disconnect');
         const app = document.querySelector('.App');
-        const clientToBeRemoved = document.querySelector(`#${disconnectedClient.clientId}`);
+        const clientToBeRemoved = document.getElementById(`#${disconnectedClient.clientId}`);
         if (clientToBeRemoved) {
           app.removeChild(clientToBeRemoved);
           const args = {
@@ -239,7 +239,7 @@ class mxGraphGridAreaEditor extends Component {
         cursorParent.setAttribute('style', `display: flex; flex-direction:column; align-items: center`);
         let cursorText = document.createElement('div');
         cursorText.innerHTML = clientInfo.customId
-        cursorText.setAttribute('style', `color: ${textColor}; background: ${textBackgroundColor}`);
+        cursorText.setAttribute('style', `color: ${textColor}; background: ${textBackgroundColor}; font-weight: 600`);
         let cursor = document.createElement('img');
         cursor.setAttribute("id", clientInfo.clientId);
         cursor.setAttribute("src", cusrorImage);
@@ -931,7 +931,7 @@ class mxGraphGridAreaEditor extends Component {
   }
 
   handleJoinRequest = () => {
-    this.props.socket.on('requestToJoin', ({roomName, user}) => {
+    this.props.socket.on('requestToJoin', ({ roomName, user }) => {
       this.setState({
         confirmLiveShare: true,
         roomName,
@@ -1013,20 +1013,24 @@ class mxGraphGridAreaEditor extends Component {
 
         let found = document.getElementById(clientInfo.clientId);
         if (!found) {
+          const textBackgroundColor = generateRandomColor();
+          const textColor = invertColor(textBackgroundColor);
           let root = document.querySelector(".App");
           let cursorParent = document.createElement('div');
           cursorParent.setAttribute('id', `#${clientInfo.clientId}`)
           cursorParent.setAttribute('value', `${clientInfo.customId}`)
-
-          cursorParent.innerHTML = clientInfo.customId;
+          cursorParent.setAttribute('style', `display: flex; flex-direction:column; align-items: center`);
+          let cursorText = document.createElement('div');
+          cursorText.innerHTML = clientInfo.customId
+          cursorText.setAttribute('style', `color: ${textColor}; background: ${textBackgroundColor}; font-weight: 600`);
           let cursor = document.createElement('img');
           cursor.setAttribute("id", clientInfo.clientId);
           cursor.setAttribute("src", cusrorImage);
-          cursor.setAttribute('position', 'absolute');
           cursor.setAttribute("width", '20px');
           cursor.setAttribute("height", '20px');
-          cursor.setAttribute("style", `color: balck;background:blue;z-index: 20; position: absolute`);
+          cursor.setAttribute("style", `marginBottom: 4px`);
           cursorParent.appendChild(cursor);
+          cursorParent.appendChild(cursorText);
           root.appendChild(cursorParent);
           cursor.innerHTML = clientInfo.clientId;
 
